@@ -32,7 +32,7 @@ struct Config { double minInterval = 20, maxInterval = 60, loadingSeconds = 5; i
 struct Bitmap { int width = 0, height = 0; std::vector<BYTE> pixels; };
 struct Popup { HWND hwnd = nullptr; std::wstring title; std::wstring message; };
 struct App {
-    HINSTANCE instance{}; Config config{}; HWND controller{}; HWND background{}; HWND entity{}; std::vector<Popup*> popups;
+    HINSTANCE instance{}; Config config{}; HWND controller{}; HWND gameWindow{}; HWND background{}; HWND entity{}; std::vector<Popup*> popups;
     std::mt19937 random{std::random_device{}()};
     int popupProgress = 0;
     Bitmap mainImage, blockImage, scareImage; std::array<Bitmap, 3> noise{};
@@ -251,12 +251,20 @@ bool AnyKeyHeld() { return (GetAsyncKeyState('W') & 0x8000) || (GetAsyncKeyState
 void Pump(DWORD milliseconds) { auto end = GetTickCount64() + milliseconds; MSG message{}; while (GetTickCount64() < end) { while (PeekMessageW(&message, nullptr, 0, 0, PM_REMOVE)) { if (message.message == WM_QUIT) g_app->running = false; TranslateMessage(&message); DispatchMessageW(&message); } Sleep(5); } }
 
 void PressKey(WORD virtualKey) {
+    WORD scanCode = static_cast<WORD>(MapVirtualKeyW(virtualKey, MAPVK_VK_TO_VSC));
     INPUT input{};
     input.type = INPUT_KEYBOARD;
-    input.ki.wVk = virtualKey;
+    input.ki.wScan = scanCode;
+    input.ki.dwFlags = KEYEVENTF_SCANCODE;
     SendInput(1, &input, sizeof(input));
     input.ki.dwFlags = KEYEVENTF_KEYUP;
     SendInput(1, &input, sizeof(input));
+}
+
+void FocusGameForInput() {
+    if (!g_app->gameWindow || !IsWindow(g_app->gameWindow)) return;
+    SetForegroundWindow(g_app->gameWindow);
+    Sleep(20);
 }
 
 void StartEvent() {
@@ -283,7 +291,7 @@ void Attack() {
     bool popupCleared = g_app->popups.empty();
         if (!popupCleared) {
             ClearPopups();
-        PlaySoundFile(L"jumpscare"); ShowNoise(true, 255); ShowCenteredEntity(g_app->scareImage, 2.0); Pump(100); PressKey(VK_ESCAPE); Pump(50); PressKey('R'); Pump(50); PressKey(VK_RETURN); Pump(1800);
+        PlaySoundFile(L"jumpscare"); ShowNoise(true, 255); ShowCenteredEntity(g_app->scareImage, 2.0); Pump(100); FocusGameForInput(); PressKey(VK_ESCAPE); Pump(50); PressKey('R'); Pump(50); PressKey(VK_RETURN); Pump(1800);
     }
     HideOverlays();
 }
@@ -297,6 +305,7 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE, LPSTR, int) {
     std::uniform_real_distribution<double> interval(g_app->config.minInterval, g_app->config.maxInterval);
     while (g_app->running) {
         Pump(100);
+        if (RobloxIsForeground()) g_app->gameWindow = GetForegroundWindow();
         if (!g_app->enabled || !RobloxIsForeground()) continue;
         Pump(static_cast<DWORD>(interval(g_app->random) * 1000));
         if (!g_app->enabled || !RobloxIsForeground()) continue;
