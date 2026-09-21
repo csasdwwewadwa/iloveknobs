@@ -179,14 +179,14 @@ void ClosePopup(HWND window) {
     }
 }
 
-    void ClearPopups() {
-        while (!g_app->popups.empty()) {
-            HWND window = g_app->popups.back()->hwnd;
-            delete g_app->popups.back();
-            g_app->popups.pop_back();
-            DestroyWindow(window);
-        }
+void ClearPopups() {
+    while (!g_app->popups.empty()) {
+        HWND window = g_app->popups.back()->hwnd;
+        delete g_app->popups.back();
+        g_app->popups.pop_back();
+        DestroyWindow(window);
     }
+}
 
 void DrawPopup(HWND window, HDC dc) {
     RECT rect{}; GetClientRect(window, &rect); HBRUSH background = CreateSolidBrush(RGB(241, 244, 249)); FillRect(dc, &rect, background); DeleteObject(background);

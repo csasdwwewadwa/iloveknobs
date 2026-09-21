@@ -3,8 +3,13 @@
 
 
 ; Delay between appearances, in seconds.
-min_interval=20
-max_interval=60
+min_interval=10
+max_interval=25
+
+; Time before the attack jumpscare, in seconds.
+attack_loading_duration=1.5
+
+
 
 ; How long A-90 scans the WASD keys, in seconds.
 appear_duration=1
@@ -18,5 +23,3 @@ screen_padding=100
 ; Window title fragment used to decide whether Roblox is active.
 roblox_window_title=Roblox
 
-; Time before the attack jumpscare, in seconds.
-attack_loading_duration=5

@@ -1,2 +1,4 @@
 /a90-private-test.pfx
 *.log
+.vs
+/A90Native
