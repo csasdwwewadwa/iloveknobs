@@ -214,7 +214,7 @@ LRESULT CALLBACK ControllerProc(HWND window, UINT message, WPARAM wParam, LPARAM
         return 0;
     }
     if (message == WM_COMMAND && LOWORD(wParam) == kTriggerControl && HIWORD(wParam) == BN_CLICKED) {
-        if (g_app->enabled) StartEvent();
+        if (g_app->enabled) g_app->debugTrigger = true;
         return 0;
     }
     if (message == WM_CLOSE) {
@@ -272,6 +272,7 @@ void StartEvent() {
     Bitmap scaled = ScaleEntity(g_app->mainImage);
     ShowBitmap(g_app->entity, scaled, 400, 300, 255);
     Pump(500);
+    if (!g_app->running) return;
     HideOverlays();
     Attack();
 }
@@ -305,10 +306,12 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE, LPSTR, int) {
     std::uniform_real_distribution<double> interval(g_app->config.minInterval, g_app->config.maxInterval);
     while (g_app->running) {
         Pump(100);
+        bool immediate = g_app->debugTrigger;
+        g_app->debugTrigger = false;
         if (RobloxIsForeground()) g_app->gameWindow = GetForegroundWindow();
-        if (!g_app->enabled || !RobloxIsForeground()) continue;
-        Pump(static_cast<DWORD>(interval(g_app->random) * 1000));
-        if (!g_app->enabled || !RobloxIsForeground()) continue;
+        if (!g_app->enabled || (!RobloxIsForeground() && !immediate)) continue;
+        if (!immediate) Pump(static_cast<DWORD>(interval(g_app->random) * 1000));
+        if (!g_app->enabled || (!RobloxIsForeground() && !immediate)) continue;
         StartEvent();
     }
     CoUninitialize(); delete g_app; return 0;
