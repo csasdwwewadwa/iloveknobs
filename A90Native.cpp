@@ -246,7 +246,17 @@ void CreatePopup() {
     popup->hwnd = CreateWindowExW(WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW, L"A90NativePopup", L"", WS_POPUP, x, y, kPopupWidth, kPopupHeight, nullptr, nullptr, g_app->instance, nullptr); SetWindowLongPtrW(popup->hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(popup)); g_app->popups.push_back(popup); PlaySoundFile(L"popup" + std::to_wstring(1 + g_app->random() % 5)); ShowWindow(popup->hwnd, SW_SHOWNOACTIVATE); SetWindowPos(popup->hwnd, HWND_TOPMOST, x, y, kPopupWidth, kPopupHeight, SWP_NOACTIVATE | SWP_SHOWWINDOW); UpdateWindow(popup->hwnd);
 }
 
-bool AnyKeyHeld() { return (GetAsyncKeyState('W') & 0x8000) || (GetAsyncKeyState('A') & 0x8000) || (GetAsyncKeyState('S') & 0x8000) || (GetAsyncKeyState('D') & 0x8000); }
+bool AnyKeyHeld() { 
+    return 
+        (GetAsyncKeyState('W') & 0x8000) || 
+        (GetAsyncKeyState('A') & 0x8000) || 
+        (GetAsyncKeyState('S') & 0x8000) || 
+        (GetAsyncKeyState('D') & 0x8000) ||
+        (GetAsyncKeyState(VK_UP) & 0x8000) || 
+        (GetAsyncKeyState(VK_LEFT) & 0x8000) || 
+        (GetAsyncKeyState(VK_DOWN) & 0x8000) || 
+        (GetAsyncKeyState(VK_RIGHT) & 0x8000); 
+}
 
 void Pump(DWORD milliseconds) { auto end = GetTickCount64() + milliseconds; MSG message{}; while (GetTickCount64() < end) { while (PeekMessageW(&message, nullptr, 0, 0, PM_REMOVE)) { if (message.message == WM_QUIT) g_app->running = false; TranslateMessage(&message); DispatchMessageW(&message); } Sleep(5); } }
 
