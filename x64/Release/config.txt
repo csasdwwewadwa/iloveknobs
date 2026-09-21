@@ -2,6 +2,9 @@
 ; CUZ UH I ONLY USED SOUNDS SAMPLED FROM THE GAME DOORS ITSELF
 
 
+; hard mode yay:3
+is_hard_mode=0
+
 ; Delay between appearances, in seconds.
 min_interval=10
 max_interval=25

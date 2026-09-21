@@ -28,7 +28,7 @@ constexpr int kToggleControl = 1001;
 constexpr int kTriggerControl = 1002;
 constexpr UINT kTriggerMessage = WM_APP + 90;
 
-struct Config { double minInterval = 20, maxInterval = 60, loadingSeconds = 5; int sampleHz = 100; };
+struct Config { bool isHardMode = 1; double minInterval = 20, maxInterval = 60, loadingSeconds = 5; int sampleHz = 100; };
 struct Bitmap { int width = 0, height = 0; std::vector<BYTE> pixels; };
 struct Popup { HWND hwnd = nullptr; std::wstring title; std::wstring message; };
 struct App {
@@ -59,7 +59,8 @@ void LoadConfig(Config& config) {
         if (line.empty() || line[0] == L';' || line[0] == L'#') continue;
         auto equals = line.find(L'='); if (equals == std::wstring::npos) continue;
         auto key = line.substr(0, equals), value = line.substr(equals + 1);
-        if (key == L"min_interval") config.minInterval = Number(value, config.minInterval);
+        if (key == L"is_hard_mode") config.isHardMode = Number(value, config.isHardMode);
+        else if (key == L"min_interval") config.minInterval = Number(value, config.minInterval);
         else if (key == L"max_interval") config.maxInterval = Number(value, config.maxInterval);
         else if (key == L"sample_hz") config.sampleHz = static_cast<int>(Number(value, config.sampleHz));
         else if (key == L"attack_loading_duration") config.loadingSeconds = Number(value, config.loadingSeconds);
@@ -288,9 +289,44 @@ void StartEvent() {
 }
 
 void Attack() {
-    ShowNoise(false, 128); ShowCenteredEntity(g_app->mainImage); PlaySoundFile(L"decide_attack"); bool attack = true; auto end = GetTickCount64() + static_cast<ULONGLONG>(kAttackCheckSeconds * 1000); while (GetTickCount64() < end) { if (!AnyKeyHeld()) attack = false; Pump(10); }
-    if (!attack) { PlaySoundFile(L"block"); ShowNoise(false, 128); ShowCenteredEntity(g_app->blockImage); Pump(200); HideOverlays(); return; }
-    ShowNoise(true, 128); ShowCenteredEntity(g_app->scareImage, 2.0); Pump(100); HideOverlays(); for (int i = 0; i < 7; ++i) { CreatePopup(); Pump(20); }
+    ShowNoise(false, 128); 
+    ShowCenteredEntity(g_app->mainImage); 
+    PlaySoundFile(L"decide_attack"); 
+    bool attack;
+    auto end = GetTickCount64() + static_cast<ULONGLONG>(kAttackCheckSeconds * 1000); 
+    
+    if (!g_app->config.isHardMode) {
+        attack = true; 
+        while (GetTickCount64() < end) { 
+            if (!AnyKeyHeld()) attack = false; 
+            Pump(10); 
+        }
+    } else {
+        attack = false;
+        while (GetTickCount64() < end) { 
+            if (AnyKeyHeld()) attack = true; 
+            Pump(10); 
+        }
+    }
+    
+    if (!attack) { 
+        PlaySoundFile(L"block"); 
+        ShowNoise(false, 128); 
+        ShowCenteredEntity(g_app->blockImage); 
+        Pump(200); 
+        HideOverlays(); 
+        return; 
+    }
+    
+    
+    ShowNoise(true, 128); 
+    ShowCenteredEntity(g_app->scareImage, 2.0); 
+    Pump(100); HideOverlays(); 
+    for (int i = 0; i < 7; ++i) { 
+        CreatePopup(); Pump(20); 
+    }
+    
+    
     g_app->popupProgress = 0;
     auto loadingStart = GetTickCount64();
     auto loadingEnd = loadingStart + static_cast<ULONGLONG>(g_app->config.loadingSeconds * 1000);
