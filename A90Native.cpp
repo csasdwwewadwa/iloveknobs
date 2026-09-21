@@ -250,6 +250,15 @@ bool AnyKeyHeld() { return (GetAsyncKeyState('W') & 0x8000) || (GetAsyncKeyState
 
 void Pump(DWORD milliseconds) { auto end = GetTickCount64() + milliseconds; MSG message{}; while (GetTickCount64() < end) { while (PeekMessageW(&message, nullptr, 0, 0, PM_REMOVE)) { if (message.message == WM_QUIT) g_app->running = false; TranslateMessage(&message); DispatchMessageW(&message); } Sleep(5); } }
 
+void PressKey(WORD virtualKey) {
+    INPUT input{};
+    input.type = INPUT_KEYBOARD;
+    input.ki.wVk = virtualKey;
+    SendInput(1, &input, sizeof(input));
+    input.ki.dwFlags = KEYEVENTF_KEYUP;
+    SendInput(1, &input, sizeof(input));
+}
+
 void StartEvent() {
     PlaySoundFile(L"appear");
     Bitmap scaled = ScaleEntity(g_app->mainImage);
@@ -274,7 +283,7 @@ void Attack() {
     bool popupCleared = g_app->popups.empty();
         if (!popupCleared) {
             ClearPopups();
-        PlaySoundFile(L"jumpscare"); ShowNoise(true, 255); ShowCenteredEntity(g_app->scareImage, 2.0); Pump(2000);
+        PlaySoundFile(L"jumpscare"); ShowNoise(true, 255); ShowCenteredEntity(g_app->scareImage, 2.0); Pump(100); PressKey(VK_ESCAPE); Pump(50); PressKey('R'); Pump(50); PressKey(VK_RETURN); Pump(1800);
     }
     HideOverlays();
 }
