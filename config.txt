@@ -10,7 +10,7 @@ min_interval=10
 max_interval=25
 
 ; Time before the attack jumpscare, in seconds.
-attack_loading_duration=1.5
+attack_loading_duration=2
 
 
 
