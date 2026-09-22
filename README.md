@@ -23,17 +23,17 @@ The executable is written to `x64\Release\A90Native.exe`.
 
 Visual Studio produces an unsigned executable by default. Windows Smart App Control may block unsigned or low-reputation native binaries on other computers. There is no code change that can make an unsigned executable universally trusted.
 
-For private testing, run the single launcher:
+Sign the compiled .exe before use:
 
 ```bat
-run.bat
+sign.bat
 ```
 
-`run.bat` verifies the Release executable, creates a private self-signed certificate and signs it only when needed, then launches the executable. The default test PFX password is `a90-test`; optional arguments are publisher and password.
+`sign.bat` verifies the Release executable and creates a private self-signed certificate and signs it only when needed. The default test PFX password is `a90-test`; optional arguments are publisher and password.
 
 For public distribution, use a publicly trusted Authenticode certificate or Microsoft Store/MSIX. Self-signed certificates may still be blocked by Smart App Control on some systems.
 
-Do not share `a90-private-test.pfx` or its password.
+Do NOT share `a90-private-test.pfx` or its password.
 
 ## Controller hub
 

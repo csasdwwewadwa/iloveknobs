@@ -32,6 +32,4 @@ if errorlevel 1 (
 ) else (
     echo Executable signature already verified.
 )
-
-start "A-90 Native" "%EXE%"
 endlocal

@@ -1,15 +1,17 @@
 ; hard mode yay:3
+;   no hard mode (0) -> not pressing either WASD for one frame cancels the jumpscare
+;      hard mode (1) -> pressing either WASD even for one single frame triggers the jumpscare
 is_hard_mode=0
 
 ; Delay between appearances, in seconds.
-min_interval=10
+min_interval=7
 max_interval=25
 
 ; Time before the attack jumpscare, in seconds.
 attack_loading_duration=2
 
 
-; Distance from the screen edges for the random appearance.
+; Distance from the screen edges for the random appearance, in pixels.
 screen_padding=100
 
 ; Window title fragment used to decide whether Roblox is active.
@@ -23,5 +25,5 @@ roblox_window_title=Roblox
 ; How long A-90 scans the WASD keys, in seconds.
 appear_duration=1
 
-; Sampling frequency for the global WASD check.
+; Sampling frequency for the global WASD check. (for u gamers, 100hz = 100FPS)
 sample_hz=100
