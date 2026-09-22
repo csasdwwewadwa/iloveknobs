@@ -1,7 +1,3 @@
-; WARNING, MODIFICATION TO THIS MIGHT BREAK THE SOUNDS 
-; CUZ UH I ONLY USED SOUNDS SAMPLED FROM THE GAME DOORS ITSELF
-
-
 ; hard mode yay:3
 is_hard_mode=0
 
@@ -13,16 +9,19 @@ max_interval=25
 attack_loading_duration=2
 
 
-
-; How long A-90 scans the WASD keys, in seconds.
-appear_duration=1
-
-; Sampling frequency for the global WASD check.
-sample_hz=100
-
 ; Distance from the screen edges for the random appearance.
 screen_padding=100
 
 ; Window title fragment used to decide whether Roblox is active.
 roblox_window_title=Roblox
 
+
+
+; WARNING, MODIFICATION TO ANYTHING BELOW MIGHT BREAK THE SOUNDS 
+; CUZ UH I ONLY USED SOUNDS SAMPLED FROM THE GAME DOORS ITSELF
+
+; How long A-90 scans the WASD keys, in seconds.
+appear_duration=1
+
+; Sampling frequency for the global WASD check.
+sample_hz=100

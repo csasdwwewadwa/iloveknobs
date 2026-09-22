@@ -75,29 +75,46 @@ bool LoadWebp(const std::wstring& path, Bitmap& output) {
     if (SUCCEEDED(factory->CreateDecoderFromFilename(path.c_str(), nullptr, GENERIC_READ, WICDecodeMetadataCacheOnLoad, &decoder)) &&
         SUCCEEDED(decoder->GetFrame(0, &frame)) && SUCCEEDED(factory->CreateFormatConverter(&converter)) &&
         SUCCEEDED(converter->Initialize(frame, GUID_WICPixelFormat32bppPBGRA, WICBitmapDitherTypeNone, nullptr, 0, WICBitmapPaletteTypeCustom))) {
-        UINT width = 0, height = 0; converter->GetSize(&width, &height); output.width = static_cast<int>(width); output.height = static_cast<int>(height); output.pixels.resize(width * height * 4);
-        okay = SUCCEEDED(converter->CopyPixels(nullptr, width * 4, static_cast<UINT>(output.pixels.size()), output.pixels.data()));
+            UINT width = 0, height = 0; 
+            converter->GetSize(&width, &height); 
+            output.width = static_cast<int>(width); 
+            output.height = static_cast<int>(height); 
+            output.pixels.resize(width * height * 4);
+            okay = SUCCEEDED(converter->CopyPixels(nullptr, width * 4, static_cast<UINT>(output.pixels.size()), output.pixels.data()));
     }
-    if (converter) converter->Release(); if (frame) frame->Release(); if (decoder) decoder->Release(); if (factory) factory->Release();
+    if (converter) converter->Release(); 
+    if (frame) frame->Release(); 
+    if (decoder) decoder->Release(); 
+    if (factory) factory->Release();
+    
     BYTE alphaMinimum = 255;
     BYTE alphaMaximum = 0;
     for (size_t index = 3; index < output.pixels.size(); index += 4) {
         alphaMinimum = (std::min)(alphaMinimum, output.pixels[index]);
         alphaMaximum = (std::max)(alphaMaximum, output.pixels[index]);
     }
-    Log(path + L" loaded=" + (okay ? L"true" : L"false") + L" size=" + std::to_wstring(output.width) + L"x" + std::to_wstring(output.height) + L" alpha=" + std::to_wstring(alphaMinimum) + L"-" + std::to_wstring(alphaMaximum));
+    
+    Log(
+        path + L" loaded=" + (okay ? L"true" : L"false") 
+        + L" size=" + std::to_wstring(output.width) + L"x" + std::to_wstring(output.height) 
+        + L" alpha=" + std::to_wstring(alphaMinimum) + L"-" + std::to_wstring(alphaMaximum)
+    );
+    
     return okay;
 }
 
 void PlaySoundFile(const std::wstring& name) {
-    static int serial = 0; std::wstring alias = L"a90_sound_" + std::to_wstring(++serial);
+    static int serial = 0; 
+    std::wstring alias = L"a90_sound_" + std::to_wstring(++serial);
     std::wstring command = L"open \"" + RootPath((L"assets\\" + name + L".mp3").c_str()) + L"\" type mpegvideo alias " + alias;
     mciSendStringW(command.c_str(), nullptr, 0, nullptr); mciSendStringW((L"play " + alias + L" from 0").c_str(), nullptr, 0, nullptr);
 }
 
 void SetOverlayStyle(HWND window, bool clickThrough) {
-    LONG_PTR style = GetWindowLongPtrW(window, GWL_EXSTYLE); style |= WS_EX_LAYERED | WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW;
-    if (clickThrough) style |= WS_EX_TRANSPARENT; SetWindowLongPtrW(window, GWL_EXSTYLE, style);
+    LONG_PTR style = GetWindowLongPtrW(window, GWL_EXSTYLE); 
+    style |= WS_EX_LAYERED | WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW;
+    if (clickThrough) style |= WS_EX_TRANSPARENT; 
+    SetWindowLongPtrW(window, GWL_EXSTYLE, style);
 }
 
 LRESULT CALLBACK OverlayProc(HWND window, UINT message, WPARAM wParam, LPARAM lParam) {
@@ -108,12 +125,39 @@ LRESULT CALLBACK OverlayProc(HWND window, UINT message, WPARAM wParam, LPARAM lP
 
 void ShowBitmap(HWND window, const Bitmap& bitmap, int x, int y, BYTE opacity) {
     if (!bitmap.width || !bitmap.height) { Log(L"ShowBitmap skipped empty bitmap"); return; }
-    BITMAPINFO info{}; info.bmiHeader.biSize = sizeof(BITMAPINFOHEADER); info.bmiHeader.biWidth = bitmap.width; info.bmiHeader.biHeight = -bitmap.height; info.bmiHeader.biPlanes = 1; info.bmiHeader.biBitCount = 32; info.bmiHeader.biCompression = BI_RGB;
-    HDC screen = GetDC(nullptr), memory = CreateCompatibleDC(screen); void* bits = nullptr; HBITMAP dib = CreateDIBSection(screen, &info, DIB_RGB_COLORS, &bits, nullptr, 0); memcpy(bits, bitmap.pixels.data(), bitmap.pixels.size()); HGDIOBJ old = SelectObject(memory, dib);
-    POINT position{x, y}; POINT source{0, 0}; SIZE size{bitmap.width, bitmap.height}; BLENDFUNCTION blend{AC_SRC_OVER, 0, opacity, AC_SRC_ALPHA};
+    BITMAPINFO info{}; 
+        info.bmiHeader.biSize = sizeof(BITMAPINFOHEADER); 
+        info.bmiHeader.biWidth = bitmap.width; 
+        info.bmiHeader.biHeight = -bitmap.height; 
+        info.bmiHeader.biPlanes = 1; 
+        info.bmiHeader.biBitCount = 32; 
+        info.bmiHeader.biCompression = BI_RGB;
+
+    HDC screen = GetDC(nullptr), memory = CreateCompatibleDC(screen); 
+        void* bits = nullptr; 
+        HBITMAP dib = CreateDIBSection(screen, &info, DIB_RGB_COLORS, &bits, nullptr, 0); 
+        memcpy(bits, bitmap.pixels.data(), bitmap.pixels.size()); 
+        HGDIOBJ old = SelectObject(memory, dib);
+
+    POINT position{x, y}; 
+        POINT source{0, 0}; 
+        SIZE size{bitmap.width, bitmap.height}; 
+        BLENDFUNCTION blend{AC_SRC_OVER, 0, opacity, AC_SRC_ALPHA};
+
     BOOL updated = UpdateLayeredWindow(window, screen, &position, &size, memory, &source, 0, &blend, ULW_ALPHA);
-    Log(L"UpdateLayeredWindow result=" + std::to_wstring(updated ? 1 : 0) + L" error=" + std::to_wstring(GetLastError()) + L" size=" + std::to_wstring(bitmap.width) + L"x" + std::to_wstring(bitmap.height));
-    SelectObject(memory, old); DeleteObject(dib); DeleteDC(memory); ReleaseDC(nullptr, screen); ShowWindow(window, SW_SHOWNOACTIVATE); SetWindowPos(window, HWND_TOPMOST, x, y, bitmap.width, bitmap.height, SWP_NOACTIVATE | SWP_SHOWWINDOW);
+    
+    Log(
+        L"UpdateLayeredWindow result=" + std::to_wstring(updated ? 1 : 0) 
+        + L" error=" + std::to_wstring(GetLastError()) 
+        + L" size=" + std::to_wstring(bitmap.width) + L"x" + std::to_wstring(bitmap.height)
+    );
+    
+    SelectObject(memory, old); 
+    DeleteObject(dib); 
+    DeleteDC(memory); 
+    ReleaseDC(nullptr, screen); 
+    ShowWindow(window, SW_SHOWNOACTIVATE); 
+    SetWindowPos(window, HWND_TOPMOST, x, y, bitmap.width, bitmap.height, SWP_NOACTIVATE | SWP_SHOWWINDOW);
 }
 
 Bitmap MakeNoise(int width, int height, bool bright) {
@@ -167,7 +211,12 @@ void ShowNoise(bool bright, BYTE opacity) {
     ShowBitmap(g_app->background, noise, 0, 0, opacity);
 }
 
-void HideOverlays() { if (!g_app) return; ShowWindow(g_app->background, SW_HIDE); ShowWindow(g_app->entity, SW_HIDE); for (auto* popup : g_app->popups) ShowWindow(popup->hwnd, SW_HIDE); }
+void HideOverlays() { 
+    if (!g_app) return; 
+    ShowWindow(g_app->background, SW_HIDE); 
+    ShowWindow(g_app->entity, SW_HIDE); 
+    for (auto* popup : g_app->popups) ShowWindow(popup->hwnd, SW_HIDE); 
+}
 
 void ClosePopup(HWND window) {
     for (auto iterator = g_app->popups.begin(); iterator != g_app->popups.end(); ++iterator) {
@@ -190,11 +239,32 @@ void ClearPopups() {
 }
 
 void DrawPopup(HWND window, HDC dc) {
-    RECT rect{}; GetClientRect(window, &rect); HBRUSH background = CreateSolidBrush(RGB(241, 244, 249)); FillRect(dc, &rect, background); DeleteObject(background);
-    RECT title{0, 0, rect.right, 28}; HBRUSH blue = CreateSolidBrush(RGB(36, 88, 154)); FillRect(dc, &title, blue); DeleteObject(blue);
-    auto popup = reinterpret_cast<Popup*>(GetWindowLongPtrW(window, GWLP_USERDATA)); SetBkMode(dc, TRANSPARENT); SetTextColor(dc, RGB(255,255,255)); TextOutW(dc, 8, 7, popup->title.c_str(), static_cast<int>(popup->title.size())); SetTextColor(dc, RGB(17,17,17)); TextOutW(dc, 10, 44, popup->message.c_str(), static_cast<int>(popup->message.size()));
-    RECT bar{10, 82, rect.right - 10, 101}; HBRUSH border = CreateSolidBrush(RGB(170, 180, 195)); FrameRect(dc, &bar, border); DeleteObject(border);
-    RECT filled = bar; filled.right = filled.left + (filled.right - filled.left) * g_app->popupProgress / 100; HBRUSH progress = CreateSolidBrush(RGB(48, 118, 204)); FillRect(dc, &filled, progress); DeleteObject(progress);
+    RECT rect{}; GetClientRect(window, &rect); 
+        HBRUSH background = CreateSolidBrush(RGB(241, 244, 249)); 
+        FillRect(dc, &rect, background); 
+        DeleteObject(background);
+
+    RECT title{0, 0, rect.right, 28}; 
+        HBRUSH blue = CreateSolidBrush(RGB(36, 88, 154)); 
+        FillRect(dc, &title, blue); 
+        DeleteObject(blue);
+
+    auto popup = reinterpret_cast<Popup*>(GetWindowLongPtrW(window, GWLP_USERDATA)); 
+        SetBkMode(dc, TRANSPARENT); SetTextColor(dc, RGB(255,255,255)); 
+        TextOutW(dc, 8, 7, popup->title.c_str(), static_cast<int>(popup->title.size())); 
+        SetTextColor(dc, RGB(17,17,17)); 
+        TextOutW(dc, 10, 44, popup->message.c_str(), static_cast<int>(popup->message.size()));
+
+    RECT bar{10, 82, rect.right - 10, 101}; 
+        HBRUSH border = CreateSolidBrush(RGB(170, 180, 195)); 
+        FrameRect(dc, &bar, border); 
+        DeleteObject(border);
+
+    RECT filled = bar; 
+        filled.right = filled.left + (filled.right - filled.left) * g_app->popupProgress / 100; 
+        HBRUSH progress = CreateSolidBrush(RGB(48, 118, 204)); 
+        FillRect(dc, &filled, progress); 
+        DeleteObject(progress);
 }
 
 LRESULT CALLBACK PopupProc(HWND window, UINT message, WPARAM wParam, LPARAM lParam) {
@@ -229,22 +299,51 @@ LRESULT CALLBACK ControllerProc(HWND window, UINT message, WPARAM wParam, LPARAM
 }
 
 void RegisterClasses(HINSTANCE instance) {
-    WNDCLASSW overlay{}; overlay.hInstance = instance; overlay.lpfnWndProc = OverlayProc; overlay.lpszClassName = kClassName; RegisterClassW(&overlay);
-    WNDCLASSW popup{}; popup.hInstance = instance; popup.lpfnWndProc = PopupProc; popup.lpszClassName = L"A90NativePopup"; popup.hbrBackground = reinterpret_cast<HBRUSH>(COLOR_WINDOW + 1); RegisterClassW(&popup);
-    WNDCLASSW controller{}; controller.hInstance = instance; controller.lpfnWndProc = ControllerProc; controller.lpszClassName = L"A90NativeController"; controller.hbrBackground = reinterpret_cast<HBRUSH>(COLOR_WINDOW + 1); controller.hCursor = LoadCursorW(nullptr, IDC_ARROW); RegisterClassW(&controller);
+    WNDCLASSW overlay{}; 
+        overlay.hInstance = instance; 
+        overlay.lpfnWndProc = OverlayProc; 
+        overlay.lpszClassName = kClassName; 
+        RegisterClassW(&overlay);
+
+    WNDCLASSW popup{}; 
+        popup.hInstance = instance; 
+        popup.lpfnWndProc = PopupProc; 
+        popup.lpszClassName = L"A90NativePopup"; 
+        popup.hbrBackground = reinterpret_cast<HBRUSH>(COLOR_WINDOW + 1); 
+        RegisterClassW(&popup);
+
+    WNDCLASSW controller{}; 
+        controller.hInstance = instance; 
+        controller.lpfnWndProc = ControllerProc; 
+        controller.lpszClassName = L"A90NativeController"; 
+        controller.hbrBackground = reinterpret_cast<HBRUSH>(COLOR_WINDOW + 1); 
+        controller.hCursor = LoadCursorW(nullptr, IDC_ARROW); 
+        RegisterClassW(&controller);
 }
 
 HWND MakeOverlay(HINSTANCE instance, bool background) {
     (void)background;
-    HWND window = CreateWindowExW(WS_EX_LAYERED | WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW | WS_EX_TRANSPARENT, kClassName, L"", WS_POPUP, 0, 0, 0, 0, nullptr, nullptr, instance, nullptr); SetOverlayStyle(window, true); return window;
+    HWND window = CreateWindowExW(
+        WS_EX_LAYERED | WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW | WS_EX_TRANSPARENT, 
+        kClassName, L"", WS_POPUP, 0, 0, 0, 0, nullptr, nullptr, instance, nullptr); 
+    SetOverlayStyle(window, true); 
+    return window;
 }
 
 void CreatePopup() {
-    auto titles = {L"Windows Security Update", L"pls speed i need this ;-;", L"A-90 moment", L"Downloading", L"Security Update", L"IMPORTANT!!", L"sans undertale"}; auto messages = {L"Downloading..", L"Getting the latest updates...", L"Virus detected! downloading antivirus..", L":3"};
-    auto title = *std::next(titles.begin(), g_app->random() % titles.size()); auto message = *std::next(messages.begin(), g_app->random() % messages.size()); auto* popup = new Popup{nullptr, title, message};
+    auto titles = {L"Windows Security Update", L"pls speed i need this ;-;", L"A-90 moment", L"Downloading", L"Security Update", L"IMPORTANT!!", L"sans undertale"}; 
+    auto messages = {L"Downloading..", L"Getting the latest updates...", L"Virus detected! downloading antivirus..", L":3"};
+    auto title = *std::next(titles.begin(), g_app->random() % titles.size()); 
+    auto message = *std::next(messages.begin(), g_app->random() % messages.size()); 
+    auto* popup = new Popup{nullptr, title, message};
     int x = 300 + g_app->random() % (std::max)(1, GetSystemMetrics(SM_CXSCREEN) - 600 - kPopupWidth);
     int y = 300 + g_app->random() % (std::max)(1, GetSystemMetrics(SM_CYSCREEN) - 600 - kPopupHeight);
-    popup->hwnd = CreateWindowExW(WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW, L"A90NativePopup", L"", WS_POPUP, x, y, kPopupWidth, kPopupHeight, nullptr, nullptr, g_app->instance, nullptr); SetWindowLongPtrW(popup->hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(popup)); g_app->popups.push_back(popup); PlaySoundFile(L"popup" + std::to_wstring(1 + g_app->random() % 5)); ShowWindow(popup->hwnd, SW_SHOWNOACTIVATE); SetWindowPos(popup->hwnd, HWND_TOPMOST, x, y, kPopupWidth, kPopupHeight, SWP_NOACTIVATE | SWP_SHOWWINDOW); UpdateWindow(popup->hwnd);
+    popup->hwnd = CreateWindowExW(WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW, L"A90NativePopup", L"", WS_POPUP, x, y, kPopupWidth, kPopupHeight, nullptr, nullptr, g_app->instance, nullptr); 
+    SetWindowLongPtrW(popup->hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(popup)); 
+    g_app->popups.push_back(popup); PlaySoundFile(L"popup" + std::to_wstring(1 + g_app->random() % 14)); 
+    ShowWindow(popup->hwnd, SW_SHOWNOACTIVATE); 
+    SetWindowPos(popup->hwnd, HWND_TOPMOST, x, y, kPopupWidth, kPopupHeight, SWP_NOACTIVATE | SWP_SHOWWINDOW); 
+    UpdateWindow(popup->hwnd);
 }
 
 bool AnyKeyHeld() { 
@@ -259,7 +358,18 @@ bool AnyKeyHeld() {
         (GetAsyncKeyState(VK_RIGHT) & 0x8000); 
 }
 
-void Pump(DWORD milliseconds) { auto end = GetTickCount64() + milliseconds; MSG message{}; while (GetTickCount64() < end) { while (PeekMessageW(&message, nullptr, 0, 0, PM_REMOVE)) { if (message.message == WM_QUIT) g_app->running = false; TranslateMessage(&message); DispatchMessageW(&message); } Sleep(5); } }
+void Pump(DWORD milliseconds) { 
+    auto end = GetTickCount64() + milliseconds; 
+    MSG message{}; 
+    while (GetTickCount64() < end) { 
+        while (PeekMessageW(&message, nullptr, 0, 0, PM_REMOVE)) { 
+            if (message.message == WM_QUIT) g_app->running = false; 
+            TranslateMessage(&message); 
+            DispatchMessageW(&message); 
+        } 
+        Sleep(5); 
+    } 
+}
 
 void PressKey(WORD virtualKey) {
     WORD scanCode = static_cast<WORD>(MapVirtualKeyW(virtualKey, MAPVK_VK_TO_VSC));
@@ -348,7 +458,28 @@ void Attack() {
 bool RobloxIsForeground();
 
 int WINAPI WinMain(HINSTANCE instance, HINSTANCE, LPSTR, int) {
-    CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED); g_app = new App{}; g_app->instance = instance; LoadConfig(g_app->config); RegisterClasses(instance); g_app->controller = CreateWindowExW(WS_EX_APPWINDOW, L"A90NativeController", L"A-90 Controller", WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX, 100, 100, 280, 170, nullptr, nullptr, instance, nullptr); CreateWindowExW(0, L"BUTTON", L"A-90 enabled", WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX, 20, 20, 220, 28, g_app->controller, reinterpret_cast<HMENU>(static_cast<INT_PTR>(kToggleControl)), instance, nullptr); CreateWindowExW(0, L"BUTTON", L"Trigger A-90 now", WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON, 20, 60, 220, 30, g_app->controller, reinterpret_cast<HMENU>(static_cast<INT_PTR>(kTriggerControl)), instance, nullptr); CheckDlgButton(g_app->controller, kToggleControl, BST_CHECKED); ShowWindow(g_app->controller, SW_SHOWNOACTIVATE); g_app->background = MakeOverlay(instance, true); g_app->entity = MakeOverlay(instance, false); LoadWebp(RootPath(L"assets\\a90_main.webp"), g_app->mainImage); LoadWebp(RootPath(L"assets\\a90_block.webp"), g_app->blockImage); LoadWebp(RootPath(L"assets\\a90_scare.webp"), g_app->scareImage);
+    CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED); 
+    g_app = new App{}; 
+    g_app->instance = instance; 
+    LoadConfig(g_app->config); 
+    RegisterClasses(instance); 
+
+    g_app->controller = CreateWindowExW(
+        WS_EX_APPWINDOW, L"A90NativeController", L"A-90 Controller", WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX, 
+        100, 100, 280, 170, nullptr, nullptr, instance, nullptr); 
+    CreateWindowExW(0, L"BUTTON", L"A-90 enabled", WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX, 
+        20, 20, 220, 28, g_app->controller, reinterpret_cast<HMENU>(static_cast<INT_PTR>(kToggleControl)), instance, nullptr); 
+    CreateWindowExW(0, L"BUTTON", L"Trigger A-90 now", WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON, 
+        20, 60, 220, 30, g_app->controller, reinterpret_cast<HMENU>(static_cast<INT_PTR>(kTriggerControl)), instance, nullptr); 
+
+    CheckDlgButton(g_app->controller, kToggleControl, BST_CHECKED); 
+    ShowWindow(g_app->controller, SW_SHOWNOACTIVATE); 
+    g_app->background = MakeOverlay(instance, true); 
+    g_app->entity = MakeOverlay(instance, false); 
+    LoadWebp(RootPath(L"assets\\a90_main.webp"), g_app->mainImage); 
+    LoadWebp(RootPath(L"assets\\a90_block.webp"), g_app->blockImage); 
+    LoadWebp(RootPath(L"assets\\a90_scare.webp"), g_app->scareImage);
+
     std::uniform_real_distribution<double> interval(g_app->config.minInterval, g_app->config.maxInterval);
     while (g_app->running) {
         Pump(100);
@@ -360,7 +491,9 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE, LPSTR, int) {
         if (!g_app->enabled || (!RobloxIsForeground() && !immediate)) continue;
         StartEvent();
     }
-    CoUninitialize(); delete g_app; return 0;
+    CoUninitialize(); 
+    delete g_app; 
+    return 0;
 }
 
 bool RobloxIsForeground() {
