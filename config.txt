@@ -8,14 +8,22 @@ min_interval=7
 max_interval=25
 
 ; Time before the attack jumpscare, in seconds.
-attack_loading_duration=2
+attack_loading_duration=1.7
 
+; Amount of popups to be spawned
+popup_count = 7
+
+; Keys to be detected by A-90 during attack
+keys=W, A, S, D, UP, LEFT, DOWN, RIGHT
 
 ; Distance from the screen edges for the random appearance, in pixels.
 screen_padding=100
 
 ; Window title fragment used to decide whether Roblox is active.
 roblox_window_title=Roblox
+
+
+
 
 
 

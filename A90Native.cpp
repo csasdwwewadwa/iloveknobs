@@ -10,6 +10,8 @@
 #include <random>
 #include <string>
 #include <vector>
+#include <sstream>
+#include <cwctype>
 
 #pragma comment(lib, "windowscodecs.lib")
 #pragma comment(lib, "winmm.lib")
@@ -28,11 +30,17 @@ constexpr int kToggleControl = 1001;
 constexpr int kTriggerControl = 1002;
 constexpr UINT kTriggerMessage = WM_APP + 90;
 
-struct Config { bool isHardMode = 1; double minInterval = 20, maxInterval = 60, loadingSeconds = 5; int sampleHz = 100; };
+struct Config { 
+    bool isHardMode = 0; 
+    double minInterval = 7, maxInterval = 25, loadingSeconds = 1.7; 
+    int popupCount = 7, sampleHz = 100;
+    std::vector<WORD> keys{ 'W', 'A', 'S', 'D', VK_UP, VK_LEFT, VK_DOWN, VK_RIGHT };
+};
 struct Bitmap { int width = 0, height = 0; std::vector<BYTE> pixels; };
 struct Popup { HWND hwnd = nullptr; std::wstring title; std::wstring message; };
 struct App {
     HINSTANCE instance{}; Config config{}; HWND controller{}; HWND gameWindow{}; HWND background{}; HWND entity{}; std::vector<Popup*> popups;
+    HANDLE stopEvent{}; // Event handle to interrupt message pumping during shutdown
     std::mt19937 random{std::random_device{}()};
     int popupProgress = 0;
     Bitmap mainImage, blockImage, scareImage; std::array<Bitmap, 3> noise{};
@@ -53,6 +61,41 @@ std::wstring RootPath(const wchar_t* name) {
 }
 
 double Number(const std::wstring& text, double fallback) { try { return std::stod(text); } catch (...) { return fallback; } }
+
+WORD ParseVirtualKey(const std::wstring& keyName) {
+    if (keyName.empty()) return 0;
+    if (keyName.length() == 1) {
+        wchar_t ch = std::towupper(keyName[0]);
+        if ((ch >= L'A' && ch <= L'Z') || (ch >= L'0' && ch <= L'9')) return static_cast<WORD>(ch);
+    }
+    if (keyName == L"UP") return VK_UP;
+    if (keyName == L"DOWN") return VK_DOWN;
+    if (keyName == L"LEFT") return VK_LEFT;
+    if (keyName == L"RIGHT") return VK_RIGHT;
+    if (keyName == L"SPACE") return VK_SPACE;
+    if (keyName == L"SHIFT") return VK_SHIFT;
+    if (keyName == L"CTRL") return VK_CONTROL;
+    
+    return 0;
+}
+
+std::vector<WORD> ParseKeysList(const std::wstring& value) {
+    std::vector<WORD> result;
+    std::wistringstream stream(value);
+    std::wstring token;
+    while (std::getline(stream, token, L',')) {
+        // Trim whitespace
+        auto start = token.find_first_not_of(L" \t");
+        auto end = token.find_last_not_of(L" \t");
+        if (start != std::wstring::npos) {
+            token = token.substr(start, (end - start + 1));
+            WORD vk = ParseVirtualKey(token);
+            if (vk != 0) result.push_back(vk);
+        }
+    }
+    return result;
+}
+
 void LoadConfig(Config& config) {
     std::wifstream file(RootPath(L"config.txt")); std::wstring line;
     while (std::getline(file, line)) {
@@ -62,8 +105,13 @@ void LoadConfig(Config& config) {
         if (key == L"is_hard_mode") config.isHardMode = Number(value, config.isHardMode);
         else if (key == L"min_interval") config.minInterval = Number(value, config.minInterval);
         else if (key == L"max_interval") config.maxInterval = Number(value, config.maxInterval);
-        else if (key == L"sample_hz") config.sampleHz = static_cast<int>(Number(value, config.sampleHz));
         else if (key == L"attack_loading_duration") config.loadingSeconds = Number(value, config.loadingSeconds);
+        else if (key == L"popup_count") config.popupCount = Number(value, config.popupCount);
+        else if (key == L"sample_hz") config.sampleHz = static_cast<int>(Number(value, config.sampleHz));
+        else if (key == L"keys") {
+            auto parsed = ParseKeysList(value);
+            if (!parsed.empty()) config.keys = parsed;
+        }
     }
 }
 
@@ -290,11 +338,17 @@ LRESULT CALLBACK ControllerProc(HWND window, UINT message, WPARAM wParam, LPARAM
     }
     if (message == WM_CLOSE) {
         g_app->running = false;
+        if (g_app->stopEvent) SetEvent(g_app->stopEvent);
         HideOverlays();
         PostQuitMessage(0);
         return 0;
     }
-    if (message == WM_DESTROY) { PostQuitMessage(0); return 0; }
+    if (message == WM_DESTROY) { 
+        g_app->running = false;
+        if (g_app->stopEvent) SetEvent(g_app->stopEvent);
+        PostQuitMessage(0); 
+        return 0; 
+    }
     return DefWindowProcW(window, message, wParam, lParam);
 }
 
@@ -347,27 +401,41 @@ void CreatePopup() {
 }
 
 bool AnyKeyHeld() { 
-    return 
-        (GetAsyncKeyState('W') & 0x8000) || 
-        (GetAsyncKeyState('A') & 0x8000) || 
-        (GetAsyncKeyState('S') & 0x8000) || 
-        (GetAsyncKeyState('D') & 0x8000) ||
-        (GetAsyncKeyState(VK_UP) & 0x8000) || 
-        (GetAsyncKeyState(VK_LEFT) & 0x8000) || 
-        (GetAsyncKeyState(VK_DOWN) & 0x8000) || 
-        (GetAsyncKeyState(VK_RIGHT) & 0x8000); 
+    for (WORD vk : g_app->config.keys) {
+        if (GetAsyncKeyState(vk) & 0x8000) return true;
+    }
+    return false;
 }
 
+// Option B: Event-driven Pump using MsgWaitForMultipleObjectsEx
 void Pump(DWORD milliseconds) { 
-    auto end = GetTickCount64() + milliseconds; 
+    ULONGLONG end = GetTickCount64() + milliseconds; 
     MSG message{}; 
-    while (GetTickCount64() < end) { 
+
+    while (g_app->running) { 
+        ULONGLONG now = GetTickCount64();
+        if (now >= end) break;
+
+        DWORD remaining = static_cast<DWORD>(end - now);
+        
+        // Block until a message arrives, a timeout occurs, or stopEvent is signaled
+        DWORD result = MsgWaitForMultipleObjectsEx(
+            1, &g_app->stopEvent, remaining, QS_ALLINPUT, MWMO_INPUTAVAILABLE
+        );
+
+        if (result == WAIT_OBJECT_0) {
+            g_app->running = false;
+            return;
+        }
+
         while (PeekMessageW(&message, nullptr, 0, 0, PM_REMOVE)) { 
-            if (message.message == WM_QUIT) g_app->running = false; 
+            if (message.message == WM_QUIT) {
+                g_app->running = false;
+                return;
+            }
             TranslateMessage(&message); 
             DispatchMessageW(&message); 
         } 
-        Sleep(5); 
     } 
 }
 
@@ -407,18 +475,20 @@ void Attack() {
     
     if (!g_app->config.isHardMode) {
         attack = true; 
-        while (GetTickCount64() < end) { 
+        while (GetTickCount64() < end && g_app->running) { 
             if (!AnyKeyHeld()) attack = false; 
             Pump(10); 
         }
     } else {
         attack = false;
-        while (GetTickCount64() < end) { 
+        while (GetTickCount64() < end && g_app->running) { 
             if (AnyKeyHeld()) attack = true; 
             Pump(10); 
         }
     }
     
+    if (!g_app->running) return;
+
     if (!attack) { 
         PlaySoundFile(L"block"); 
         ShowNoise(false, 128); 
@@ -428,26 +498,32 @@ void Attack() {
         return; 
     }
     
-    
     ShowNoise(true, 128); 
     ShowCenteredEntity(g_app->scareImage, 2.0); 
-    Pump(100); HideOverlays(); 
-    for (int i = 0; i < 7; ++i) { 
-        CreatePopup(); Pump(20); 
+    Pump(100); 
+    if (!g_app->running) return;
+
+    HideOverlays(); 
+    for (int i = 0; i < g_app->config.popupCount; ++i) { 
+        if (!g_app->running) return;
+        CreatePopup();
+        Pump(20); 
     }
-    
     
     g_app->popupProgress = 0;
     auto loadingStart = GetTickCount64();
     auto loadingEnd = loadingStart + static_cast<ULONGLONG>(g_app->config.loadingSeconds * 1000);
-    while (GetTickCount64() < loadingEnd && !g_app->popups.empty()) {
+    while (GetTickCount64() < loadingEnd && !g_app->popups.empty() && g_app->running) {
         g_app->popupProgress = static_cast<int>(100.0 * (GetTickCount64() - loadingStart) / (g_app->config.loadingSeconds * 1000));
         for (auto* popup : g_app->popups) InvalidateRect(popup->hwnd, nullptr, FALSE);
         Pump(20);
     }
+
+    if (!g_app->running) return;
+
     bool popupCleared = g_app->popups.empty();
-        if (!popupCleared) {
-            ClearPopups();
+    if (!popupCleared) {
+        ClearPopups();
         PlaySoundFile(L"jumpscare"); ShowNoise(true, 255); ShowCenteredEntity(g_app->scareImage, 2.0); Pump(100); FocusGameForInput(); PressKey(VK_ESCAPE); Pump(50); PressKey('R'); Pump(50); PressKey(VK_RETURN); Pump(1800);
     }
     HideOverlays();
@@ -461,6 +537,8 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE, LPSTR, int) {
     CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED); 
     g_app = new App{}; 
     g_app->instance = instance; 
+    g_app->stopEvent = CreateEventW(nullptr, TRUE, FALSE, nullptr);
+
     LoadConfig(g_app->config); 
     RegisterClasses(instance); 
 
@@ -483,14 +561,22 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE, LPSTR, int) {
     std::uniform_real_distribution<double> interval(g_app->config.minInterval, g_app->config.maxInterval);
     while (g_app->running) {
         Pump(100);
+        if (!g_app->running) break;
+
         bool immediate = g_app->debugTrigger;
         g_app->debugTrigger = false;
         if (RobloxIsForeground()) g_app->gameWindow = GetForegroundWindow();
         if (!g_app->enabled || (!RobloxIsForeground() && !immediate)) continue;
-        if (!immediate) Pump(static_cast<DWORD>(interval(g_app->random) * 1000));
-        if (!g_app->enabled || (!RobloxIsForeground() && !immediate)) continue;
+        
+        if (!immediate) {
+            Pump(static_cast<DWORD>(interval(g_app->random) * 1000));
+        }
+
+        if (!g_app->running || !g_app->enabled || (!RobloxIsForeground() && !immediate)) continue;
         StartEvent();
     }
+
+    if (g_app->stopEvent) CloseHandle(g_app->stopEvent);
     CoUninitialize(); 
     delete g_app; 
     return 0;
