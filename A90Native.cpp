@@ -393,7 +393,7 @@ void CreatePopup() {
     int x = 300 + g_app->random() % (std::max)(1, GetSystemMetrics(SM_CXSCREEN) - 600 - kPopupWidth);
     int y = 300 + g_app->random() % (std::max)(1, GetSystemMetrics(SM_CYSCREEN) - 600 - kPopupHeight);
     popup->hwnd = CreateWindowExW(WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW, L"A90NativePopup", L"", WS_POPUP, x, y, kPopupWidth, kPopupHeight, nullptr, nullptr, g_app->instance, nullptr); 
-    SetWindowLongPtrW(popup->hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(popup)); 
+    SetWindowLongPtrW(popup->hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(popup));
     g_app->popups.push_back(popup); PlaySoundFile(L"popup" + std::to_wstring(1 + g_app->random() % 14)); 
     ShowWindow(popup->hwnd, SW_SHOWNOACTIVATE); 
     SetWindowPos(popup->hwnd, HWND_TOPMOST, x, y, kPopupWidth, kPopupHeight, SWP_NOACTIVATE | SWP_SHOWWINDOW); 
@@ -407,7 +407,7 @@ bool AnyKeyHeld() {
     return false;
 }
 
-// Option B: Event-driven Pump using MsgWaitForMultipleObjectsEx
+// Event-driven Pump using MsgWaitForMultipleObjectsEx
 void Pump(DWORD milliseconds) { 
     ULONGLONG end = GetTickCount64() + milliseconds; 
     MSG message{}; 
