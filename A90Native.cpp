@@ -32,9 +32,16 @@ constexpr UINT kTriggerMessage = WM_APP + 90;
 
 struct Config { 
     bool isHardMode = 0; 
-    double minInterval = 7, maxInterval = 25, loadingSeconds = 1.7; 
-    int popupCount = 7, sampleHz = 100;
+    double minInterval = 7;
+    double maxInterval = 25;
+    double loadingSeconds = 1.7; 
+    int popupCount = 7;
     std::vector<WORD> keys{ 'W', 'A', 'S', 'D', VK_UP, VK_LEFT, VK_DOWN, VK_RIGHT };
+    int screenPadding = 100;
+    int screenPaddingPopup = 300;
+
+    double appearDuration = 1;
+    int sampleHz = 100;
 };
 struct Bitmap { int width = 0, height = 0; std::vector<BYTE> pixels; };
 struct Popup { HWND hwnd = nullptr; std::wstring title; std::wstring message; };
@@ -102,16 +109,16 @@ void LoadConfig(Config& config) {
         if (line.empty() || line[0] == L';' || line[0] == L'#') continue;
         auto equals = line.find(L'='); if (equals == std::wstring::npos) continue;
         auto key = line.substr(0, equals), value = line.substr(equals + 1);
-        if (key == L"is_hard_mode") config.isHardMode = Number(value, config.isHardMode);
+        if      (key == L"is_hard_mode") config.isHardMode = Number(value, config.isHardMode);
         else if (key == L"min_interval") config.minInterval = Number(value, config.minInterval);
         else if (key == L"max_interval") config.maxInterval = Number(value, config.maxInterval);
         else if (key == L"attack_loading_duration") config.loadingSeconds = Number(value, config.loadingSeconds);
-        else if (key == L"popup_count") config.popupCount = Number(value, config.popupCount);
+        else if (key == L"popup_count") config.popupCount = static_cast<int>(Number(value, config.popupCount));
+        else if (key == L"keys") { auto parsed = ParseKeysList(value); if (!parsed.empty()) config.keys = parsed; }
+        else if (key == L"screen_padding") config.screenPadding = static_cast<int>(Number(value, config.screenPadding));
+        else if (key == L"screen_padding_popup") config.screenPaddingPopup = static_cast<int>(Number(value, config.screenPaddingPopup));
+        else if (key == L"appear_duration") config.appearDuration = Number(value, config.appearDuration);
         else if (key == L"sample_hz") config.sampleHz = static_cast<int>(Number(value, config.sampleHz));
-        else if (key == L"keys") {
-            auto parsed = ParseKeysList(value);
-            if (!parsed.empty()) config.keys = parsed;
-        }
     }
 }
 
@@ -390,8 +397,8 @@ void CreatePopup() {
     auto title = *std::next(titles.begin(), g_app->random() % titles.size()); 
     auto message = *std::next(messages.begin(), g_app->random() % messages.size()); 
     auto* popup = new Popup{nullptr, title, message};
-    int x = 300 + g_app->random() % (std::max)(1, GetSystemMetrics(SM_CXSCREEN) - 600 - kPopupWidth);
-    int y = 300 + g_app->random() % (std::max)(1, GetSystemMetrics(SM_CYSCREEN) - 600 - kPopupHeight);
+    int x = g_app->config.screenPaddingPopup + g_app->random() % (std::max)(1, GetSystemMetrics(SM_CXSCREEN) - g_app->config.screenPaddingPopup*2 - kPopupWidth);
+    int y = g_app->config.screenPaddingPopup + g_app->random() % (std::max)(1, GetSystemMetrics(SM_CYSCREEN) - g_app->config.screenPaddingPopup*2 - kPopupHeight);
     popup->hwnd = CreateWindowExW(WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW, L"A90NativePopup", L"", WS_POPUP, x, y, kPopupWidth, kPopupHeight, nullptr, nullptr, g_app->instance, nullptr); 
     SetWindowLongPtrW(popup->hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(popup));
     g_app->popups.push_back(popup); PlaySoundFile(L"popup" + std::to_wstring(1 + g_app->random() % 14)); 
@@ -459,7 +466,12 @@ void FocusGameForInput() {
 void StartEvent() {
     PlaySoundFile(L"appear");
     Bitmap scaled = ScaleEntity(g_app->mainImage);
-    ShowBitmap(g_app->entity, scaled, 400, 300, 255);
+    ShowBitmap(
+        g_app->entity, scaled, 
+        g_app->config.screenPadding + g_app->random() % (std::max)(1, GetSystemMetrics(SM_CXSCREEN) - g_app->config.screenPadding*2 - g_app->mainImage.width),
+        g_app->config.screenPadding + g_app->random() % (std::max)(1, GetSystemMetrics(SM_CYSCREEN) - g_app->config.screenPadding*2 - g_app->mainImage.height),
+        255
+    );
     Pump(500);
     if (!g_app->running) return;
     HideOverlays();

@@ -18,11 +18,7 @@ keys=W, A, S, D, UP, LEFT, DOWN, RIGHT
 
 ; Distance from the screen edges for the random appearance, in pixels.
 screen_padding=100
-
-; Window title fragment used to decide whether Roblox is active.
-roblox_window_title=Roblox
-
-
+screen_padding_popup=300
 
 
 
