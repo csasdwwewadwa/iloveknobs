@@ -9,7 +9,7 @@
 3. Build the solution.
 4. Run `A90Native.exe` with the `assets` folder and `config.txt` beside it.
 
-The project uses only Windows SDK libraries: WIC for WebP decoding, Win32 layered windows for the overlay, and MCI for MP3 playback. No Python or third-party runtime is required.
+The project uses only Windows SDK libraries: WIC for WebP decoding, Win32 layered windows for the overlay, and MCI for MP3 playback. No third-party runtime is required.
 
 ## Build from a Developer PowerShell
 
