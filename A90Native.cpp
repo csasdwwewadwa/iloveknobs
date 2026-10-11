@@ -34,7 +34,7 @@ struct Config {
     bool isHardMode = 0; 
     double minInterval = 7;
     double maxInterval = 25;
-    double loadingSeconds = 1.7; 
+    double loadingSeconds = 2; 
     int popupCount = 7;
     std::vector<WORD> keys{ 'W', 'A', 'S', 'D', VK_UP, VK_LEFT, VK_DOWN, VK_RIGHT };
     int screenPadding = 100;

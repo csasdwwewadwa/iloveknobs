@@ -8,7 +8,7 @@ min_interval=7
 max_interval=25
 
 ; Time before the attack jumpscare, in seconds.
-attack_loading_duration=1.7
+attack_loading_duration=2
 
 ; Amount of popups to be spawned
 popup_count = 7
